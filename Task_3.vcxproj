@@ -104,6 +104,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\WINDOWS 10\Desktop\Task_3\eigen-3.4.0</AdditionalIncludeDirectories>
+      <AdditionalUsingDirectories>C:\Users\WINDOWS 10\Desktop\Task_3\eigen-3.4.0</AdditionalUsingDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
