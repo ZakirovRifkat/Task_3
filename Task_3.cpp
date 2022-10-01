@@ -38,6 +38,47 @@ vector<vector<double>> multiplyMatrixMatrix(vector <vector <double>> A, vector <
 				AB[i][j] += A[i][k] * B[k][j];
 	return AB;
 }
+vector<double> Gauss(vector<vector<double>> matrix_A, vector<double> vector_b)
+{
+	int p, n = matrix_A.size();
+	double r, c, s;
+	vector<double>x(n), b(n);
+	vector<vector<double>>a(n, vector<double>(n));
+	a = matrix_A;
+	b = vector_b;
+	for (int k = 0; k < n; k++)
+	{
+		p = k;
+		for (int m = k + 1; m < n; m++)
+			if (abs(a[p][k]) < abs(a[m][k])) //поиск максимального ведущего элемента
+				p = m;
+		for (int j = k; j < n; j++)
+		{
+			r = a[k][j];
+			a[k][j] = a[p][j];   //перестановка строк
+			a[p][j] = r;
+		}
+		r = b[k];
+		b[k] = b[p];   //перестановка свободных членов
+		b[p] = r;
+		for (int m = k + 1; m < n; m++)
+		{
+			c = a[m][k] / a[k][k];
+			b[m] = b[m] - c * b[k]; //приведение матрицы к верхнетреугольному виду
+			for (int i = k; i < n; i++)
+				a[m][i] = a[m][i] - c * a[k][i];
+		}
+	}
+	x[n - 1] = b[n - 1] / a[n - 1][n - 1];
+	for (int k = n - 1; k >= 0; k--)
+	{
+		s = 0;
+		for (int i = k + 1; i < n; i++)				//обратный ход метода Гаусса
+			s = s + a[k][i] * x[i];
+		x[k] = (b[k] - s) / a[k][k];
+	}
+	return x;
+}
 double scalar(vector<double> a, vector<double> b)
 {
 	double ab = 0;
@@ -68,13 +109,8 @@ vector<double> degree_method(vector<vector<double>> A, double e)
 	{
 		y_k = multiplyMatrixVector(A, y_0);
 		lambda = y_k[0] / y_0[0];
-	/*	cout << "\nлямбда = " << lambda << "\n";
-		cout << "\nВектор y_k:\n";
-		for (int i = 0; i < n; i++)
-			cout << y_k[i]<<"\n";*/
 		y_0 = y_k;
 		estimate = aposteriori_estimate(A, y_k, lambda);
-		//cout << "estimate = " << estimate<<"\n";
 		step++;
 	}
 	solution[0] = step;
@@ -95,13 +131,8 @@ vector<double> scalar_method(vector<vector<double>> A, double e)
 	{
 		y_k = multiplyMatrixVector(A, y_0);
 		lambda = scalar(y_k, y_0) / scalar(y_0, y_0);
-		/*	cout << "\nлямбда = " << lambda << "\n";
-		cout << "\nВектор y_k:\n";
-		for (int i = 0; i < n; i++)
-			cout << y_k[i]<<"\n";*/
 		y_0 = y_k;
 		estimate = aposteriori_estimate(A, y_k, lambda);
-		//cout << "estimate = " << estimate<<"\n";
 		step++;
 	}
 	solution[0] = step;
@@ -117,11 +148,52 @@ vector<double> reverse_scalar(vector<vector<double>> A, double lambda)
 	vector<vector<double>> B (n, vector<double>(n));
 	vector<double> vector(n+2);
 	for (int i = 0; i < n; i++)
-		B[i][i] = A[i][i] - lambda;
+		for (int j = 0; j < n; j++)
+		{
+			if (i == j)
+				B[i][j] = A[i][j] - lambda;
+			else
+				B[i][j] = A[i][j];
+		}
 	vector = scalar_method(B, 0.000001);
 	reverse_lambda = vector[1] + lambda;
 	vector[1] = reverse_lambda;
 	return vector;
+}
+vector<double> Vilandt(vector<vector<double>> A)
+{
+	int n = A.size();
+	double lambda_0 = 1, lambda_k = 0, mu=0, estimate = 1;
+	vector<double> solution, y_k(n), y_0(n);
+	vector<vector<double>> W(n, vector<double>(n));
+	for (int i = 0; i < n; i++)
+		y_0[i] = 1;
+	while (estimate > 0.001)
+	{
+		for (int i = 0; i < n; i++)
+		{
+			y_0[i] = 1;
+			for (int j = 0; j < n; j++)
+			{
+				if (i == j)
+					W[i][j] = A[i][j] - lambda_0;
+				else
+					W[i][j] = A[i][j];
+			}
+		}
+		y_k = Gauss(W, y_0);
+		mu = scalar(y_k, y_0) / scalar(y_0, y_0);
+		lambda_k = 1 / (mu)+lambda_0;
+		estimate = fabs(lambda_k - lambda_0);
+		y_0 = y_k;
+		lambda_0 = lambda_k;
+		solution.push_back(lambda_k);
+	}
+	return solution;
+}
+double Eytken(double num_1, double num_2, double num_3)
+{
+	return (num_1 * num_3 - pow(num_2, 2)) / (num_1 - 2 * num_2 + num_3);
 }
 
 int main()
@@ -134,7 +206,7 @@ int main()
 	file >> n;
 	cout << "Размерность матрицы n = " << n<<"\n";
 	vector<vector<double>> matrix_A(n, vector<double>(n));
-	vector<double> sol_1(n + 2), sol_2(n+2), sol_3(n+2),x(n);
+	vector<double> sol_1(n + 2), sol_2(n+2), sol_3(n+2),x(n), sol_v;
 
 	//Заполняем матрицу
 	for(int i=0; i<n; i++)
@@ -171,7 +243,6 @@ int main()
 	}
 	cout << "; Кол-во итераций = " << sol_2[0] << "\n";
 
-
 	//обратная граница:
 		sol_3 = reverse_scalar(matrix_A, sol_2[1]);
 	cout << "\nПротивоположная граница спектра = " << (sol_3[1]) << "\n"
@@ -184,6 +255,14 @@ int main()
 			cout << sol_3[i] << " )";
 	}
 	cout << "; Кол-во итераций = " << sol_3[0] << "\n";
+
+	//Метод Виландта 
+	sol_v = Vilandt(matrix_A);
+	int size = sol_v.size();
+	cout << "\nИзолированное собственное число методом Виландта = " << sol_v[size-1] << "\n";
+	//Уточнение Эйткена
+	double sol_eytken = Eytken(sol_v[size - 1], sol_v[size - 2], sol_v[size - 3]);
+	cout << "Уточнение Эйткена изолированного собственного числа = " << sol_eytken<<"\n";
 
 	return(0);
 }
