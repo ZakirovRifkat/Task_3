@@ -19,6 +19,15 @@ void show(vector<vector<double>> matrix)
 		cout << "|\n";
 	}
 }
+double sign(double a)
+{
+	if (a < 0)
+		return -1;
+	else if (a == 0)
+		return 0;
+	else
+		return 1;
+}
 vector<double> multiplyMatrixVector(vector<vector<double>>A, vector<double>b)
 {
 	int n = A.size();
@@ -85,6 +94,76 @@ double scalar(vector<double> a, vector<double> b)
 	for (int i = 0; i < a.size(); i++)
 		ab += a[i] * b[i];
 	return ab;
+}
+vector<vector<double>> Jacobi(vector<vector<double>> matrix, double e)
+{
+	int n = matrix.size(), max_i = 0, max_j = 0, step = 0;
+	double max_element = 0, c = 0, s = 0, d = 0, raznost = 0;
+	vector<vector<double>> solution(n + 1, vector<double>(n + 1));
+	vector<vector<double>> X(n + 1, vector<double>(n + 1)), A(n, vector<double>(n)), new_A(n, vector<double>(n)), V(n, vector<double>(n));
+	A = matrix;
+	for (int i = 0; i < n; i++)
+		X[i][i] = 1;
+	do
+	{
+		for (int i = 0; i < n; i++)
+			for (int j = i + 1; j < n; j++)
+				if (max_element < fabs(A[i][j]))
+				{
+					max_element = fabs(A[i][j]);
+					max_i = i;
+					max_j = j;
+				}
+		raznost = A[max_i][max_i] - A[max_j][max_j];
+		d = sqrt(pow(raznost, 2) + 4 * pow(A[max_i][max_j], 2));
+		c = sqrt((1 + (fabs(raznost) / d)) / 2);
+		s = sign(A[max_i][max_j] * raznost) * sqrt((1 - (fabs(raznost) / d)) / 2);
+		for (int i = 0; i < n; i++)
+			for (int j = 0; j < n; j++)
+			{
+				if (i != max_i && i != max_j && j != max_i && j != max_j)
+					new_A[i][j] = A[i][j];
+				else if (i != max_i && i != max_j)
+				{
+					new_A[i][max_i] = c * A[i][max_i] + s * A[i][max_j];
+					new_A[max_i][i] = new_A[i][max_i];
+					new_A[i][max_j] = -s * A[i][max_i] + c * A[i][max_j];
+					new_A[max_j][i] = new_A[i][max_j];
+				}
+			}
+
+		new_A[max_i][max_i] = c * c * A[max_i][max_i] + 2 * c * s * A[max_i][max_j] + s * s * A[max_j][max_j];
+		new_A[max_j][max_j] = s * s * A[max_i][max_i] - 2 * c * s * A[max_i][max_j] + c * c * A[max_j][max_j];
+		new_A[max_i][max_j] = 0;
+		new_A[max_j][max_i] = 0;
+		for (int i = 0; i < n; i++)
+			for (int j = 0; j < n; j++)
+			{
+				if (i != max_i && i != max_j)
+					V[i][i] = 1;
+				else if (i != max_i && i != max_j && j != max_i && j != max_j)
+					V[i][j] = 0;
+			}
+
+		V[max_i][max_i] = c;
+		V[max_j][max_j] = c;
+		V[max_i][max_j] = -s;
+		V[max_j][max_i] = s;
+		if (step == 0)
+			X = V;
+		else
+			X = multiplyMatrixMatrix(X, V);
+		A = new_A;
+		step++;
+	} while (fabs(new_A[max_i][max_j]) > e);
+
+	for (int i = 0; i < n; i++)
+		for (int j = 0; j < n; j++)
+		{
+			solution[i][j] = X[i][j];
+			solution[n][j] = A[j][j];
+		}
+	return solution;
 }
 double aposteriori_estimate(vector<vector<double>> A, vector<double> Y, double lambda)
 {
@@ -205,8 +284,8 @@ int main()
 	ifstream file("\Text.txt");
 	file >> n;
 	cout << "Размерность матрицы n = " << n<<"\n";
-	vector<vector<double>> matrix_A(n, vector<double>(n));
-	vector<double> sol_1(n + 2), sol_2(n+2), sol_3(n+2),x(n), sol_v;
+	vector<vector<double>> matrix_A(n, vector<double>(n)), sol_jacobi;
+	vector<double> sol_1, sol_2, sol_3, sol_v;
 
 	//Заполняем матрицу
 	for(int i=0; i<n; i++)
@@ -215,6 +294,24 @@ int main()
 
 	cout << "Исходная матрица:\n";
 	show(matrix_A);
+
+	//Метод Якоби
+	sol_jacobi = Jacobi(matrix_A, 0.000001);
+	cout << "\nСобственные числа найденные методом Якоби: ( ";
+	for (int i = 0; i < n; i++)
+	{
+		if (i != n - 1)
+			cout << sol_jacobi[n][i] << "; ";
+		else
+			cout << sol_jacobi[n][i] << " )";
+	}
+	cout << "\nСобственные векторы - столбцы следующей матрицы:\n";
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < n; j++)
+			cout << "\t|" << sol_jacobi[i][j] << "|";
+		cout << "\n";
+	}
 
 	//степенной метод
 	sol_1 = degree_method(matrix_A, 0.001);
@@ -228,7 +325,6 @@ int main()
 			cout << sol_1[i] << " )";
 	}
 	cout << "; Кол-во итераций = " << sol_1[0]<<"\n";
-;
 	
 	//метод скалярных произведений
 	sol_2 = scalar_method(matrix_A, 0.000001);
@@ -260,6 +356,7 @@ int main()
 	sol_v = Vilandt(matrix_A);
 	int size = sol_v.size();
 	cout << "\nИзолированное собственное число методом Виландта = " << sol_v[size-1] << "\n";
+
 	//Уточнение Эйткена
 	double sol_eytken = Eytken(sol_v[size - 1], sol_v[size - 2], sol_v[size - 3]);
 	cout << "Уточнение Эйткена изолированного собственного числа = " << sol_eytken<<"\n";
